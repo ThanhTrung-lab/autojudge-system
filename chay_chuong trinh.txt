@@ -11,3 +11,10 @@ https://github.com/ThanhTrung-lab/autojudge-system
 Link chấm
 
 https://autojudge-thanhtrung.streamlit.app/
+
+
+Cập nhật tài khoản nhập 3 lệnh sau trong thư mục autojudge5
+
+git add .
+git commit -m "Update: Them/sua tai khoan nguoi dung"
+git push origin main
