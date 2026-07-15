@@ -1,0 +1,13 @@
+pip install -r requirements.txt
+streamlit run app.py
+Chạy streamlit
+
+C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\python.exe -m streamlit run app.py
+
+Chạy github
+
+https://github.com/ThanhTrung-lab/autojudge-system
+
+Link chấm
+
+https://autojudge-thanhtrung.streamlit.app/
