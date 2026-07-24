@@ -19,6 +19,33 @@ def xuly(q):
             res.append(f[x])
             x//=f[x]
         kq.append(' '.join(map(str,res)))
-    print('\n'.join(kq))
+    return kq
+    '''print('\n'.join(kq))
 q=[12,31,100]
-xuly(q)
+xuly(q)'''
+
+'''def doc_ghi():
+    with open('input5.txt','r') as fi:
+        data=fi.read().split()
+        q=int(data[0])
+        a=list(map(int,data[1:q+1]))
+    with open('output5.txt','w') as fo:
+        kq=xuly(a)
+        fo.write('\n'.join(kq))
+doc_ghi()'''
+import sys
+def doc_ghi():
+    data=sys.stdin.read().split()
+    if not data:
+        return
+    q=int(data[0])
+    a=list(map(int,data[1:q+1]))
+    kq=xuly(a)
+    sys.stdout.write('\n'.join(kq))
+doc_ghi()
+    
+    
+    
+    
+    
+

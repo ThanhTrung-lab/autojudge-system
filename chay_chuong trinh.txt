@@ -15,6 +15,6 @@ https://autojudge-thanhtrung.streamlit.app/
 
 Cập nhật tài khoản nhập 3 lệnh sau trong thư mục autojudge5
 
-git add .
-git commit -m "Update: Them/sua tai khoan nguoi dung"
+git add config.py
+git commit -m "Update: Cap nhat them tai khoan hocsinh1"
 git push origin main
