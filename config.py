@@ -9,6 +9,7 @@ USERS = {
     "teacher1": {"password": "123", "role": "admin", "name": "Thầy Trung"},
     "hocsinhA": {"password": "abc", "role": "student", "name": "Nguyễn Hồng Huy"},
     "hocsinhB": {"password": "abc", "role": "student", "name": "Nguyễn Nhật Quốc"}
+    "hocsinh1": {"password": "abc", "role": "student", "name": "Trương Gia Minh"}
 }
 # --- TÍNH NĂNG MỚI V1.3: LƯU LỊCH SỬ CHẤM ---
 history_file = "history.csv"
