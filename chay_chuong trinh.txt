@@ -18,3 +18,7 @@ Cập nhật tài khoản nhập 3 lệnh sau trong thư mục autojudge5
 git add config.py
 git commit -m "Update: Cap nhat them tai khoan hocsinh1"
 git push origin main
+
+git add .
+git commit -m "Update: Cap nhat he thong"
+git push origin main
