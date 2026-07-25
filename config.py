@@ -7,7 +7,7 @@ build_folder = "build"  # Nơi chứa các file .exe sau khi biên dịch
 # --- TÍNH NĂNG MỚI V1.2: QUẢN LÝ NGƯỜI DÙNG ---
 USERS = {
     "teacher1": {"password": "123", "role": "admin", "name": "Thầy Trung"},
-    "teacher1": {"password": "123", "role": "admin", "name": "Thầy Phan Văn Đà"},
+    "teacher2": {"password": "123", "role": "admin", "name": "Thầy Phan Văn Đà"},
     "hocsinhA": {"password": "abc", "role": "student", "name": "Nguyễn Hồng Huy"},
     "hocsinhB": {"password": "abc", "role": "student", "name": "Nguyễn Nhật Quốc"},
     "hocsinh1": {"password": "abc", "role": "student", "name": "Trương Gia Minh"},
