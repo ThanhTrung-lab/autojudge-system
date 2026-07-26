@@ -1,11 +1,11 @@
+import pytz
 import streamlit as st
 import os
 import pandas as pd
 import zipfile
-import shutil
+import shutil  # Thư viện hỗ trợ dọn dẹp thư mục cũ
 from datetime import datetime
-import pytz
-from streamlit_gsheets import GSheetsConnection
+from streamlit_gsheets import GSheetsConnection  # <--- Khởi tạo thư viện Google Sheets
 import config
 from testcase import get_problem_list, validate_problem, get_test_cases, get_problem_description
 from judge import run_single_test, compile_cpp
@@ -13,8 +13,9 @@ from judge import run_single_test, compile_cpp
 # --- KHỞI TẠO KẾT NỐI GOOGLE SHEETS ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- HÀM HELPER: LƯU KẾT QUẢ VÀ CẢ MÃ NGUỒN VÀO GOOGLE SHEETS ---
-def save_to_history(username, problem, score, correct, total, lang, source_code):
+# --- HÀM HELPER: LƯU KẾT QUẢ VÀO GOOGLE SHEETS (LƯU VĨNH VIỄN) ---
+def save_to_history(username, problem, score, correct, total, lang):
+    # Lấy giờ Việt Nam (UTC+7)
     tz_vietnam = pytz.timezone('Asia/Ho_Chi_Minh')
     now_vn = datetime.now(tz_vietnam)
 
@@ -24,14 +25,13 @@ def save_to_history(username, problem, score, correct, total, lang, source_code)
         "Điểm số": f"{score:.1f}%",
         "Kết quả": f"{correct}/{total}",
         "Ngôn ngữ": lang,
-        "Thời gian chấm": now_vn.strftime("%d/%m/%Y %H:%M:%S"),
-        "Mã nguồn": source_code  # Lưu trực tiếp Code vào Google Sheet
+        "Thời gian chấm": now_vn.strftime("%d/%m/%Y %H:%M:%S")
     }])
     try:
         existing_data = conn.read(ttl=0)
         updated_data = pd.concat([existing_data, new_data], ignore_index=True)
         conn.update(data=updated_data)
-    except Exception:
+    except Exception as e:
         conn.update(data=new_data)
 
 # --- HÀM HELPER: LẤY LỊCH SỬ TỪ GOOGLE SHEETS ---
@@ -44,12 +44,14 @@ def load_history():
         pass
     return pd.DataFrame()
 
-# --- ÉP GIẢI NÉN KHI CÓ SỰ THAY ĐỔI VỀ TEST CASE ---
+# --- ĐÃ NÂNG CẤP BẬC CAO: ÉP GIẢI NÉN KHI SỐ LƯỢNG TEST CASE TRONG FILE ZIP THAY ĐỔI ---
 if os.path.exists("problems.zip"):
     hash_marker = "problems_extracted.txt"
     current_zip_time = str(os.path.getmtime("problems.zip"))
+    
     need_extract = False
-
+    
+    # Kiểm tra điều kiện thời gian sửa đổi file zip
     if not os.path.exists(hash_marker) or not os.path.exists("problems"):
         need_extract = True
     else:
@@ -57,12 +59,16 @@ if os.path.exists("problems.zip"):
             last_zip_time = f.read().strip()
         if last_zip_time != current_zip_time:
             need_extract = True
-
+            
+    # Chốt chặn phụ: Nếu file zip mới có số lượng file khác với số lượng test case cũ, ép giải nén luôn!
     if not need_extract and os.path.exists("problems"):
         try:
             with zipfile.ZipFile("problems.zip", 'r') as zip_ref:
+                # Đếm tổng số file thực tế hiện tại trong thư mục problems (loại trừ thư mục rỗng)
                 total_current_files = sum([len(files) for r, d, files in os.walk("problems")])
+                # Đếm tổng số file thực tế trong file ZIP mới
                 total_zip_files = len([f for f in zip_ref.namelist() if not f.endswith('/')])
+                
                 if total_current_files != total_zip_files:
                     need_extract = True
         except Exception:
@@ -71,13 +77,16 @@ if os.path.exists("problems.zip"):
     if need_extract:
         if os.path.exists("problems"):
             shutil.rmtree("problems")
+            
         with zipfile.ZipFile("problems.zip", 'r') as zip_ref:
             zip_ref.extractall(".")
+            
+        # Ghi lại dấu vết thời gian của file ZIP vừa giải nén thành công
         with open(hash_marker, "w") as f:
             f.write(current_zip_time)
 
-# --- CẤU HÌNH TRANG ---
-st.set_page_config(page_title="T_Code V1.4", layout="wide")
+# --- 1. ĐỔI TÊN HỆ THỐNG TRÊN TAB TRÌNH DUYỆT ---
+st.set_page_config(page_title="T_Code V1.3", layout="wide")
 
 # --- KHỞI TẠO SESSION STATE ---
 if "logged_in" not in st.session_state:
@@ -85,7 +94,7 @@ if "logged_in" not in st.session_state:
     st.session_state.username = ""
     st.session_state.user_info = {}
 
-# --- MÀN HÌNH ĐĂNG NHẬP ---
+# --- GIAO DIỆN MÀN HÌNH ĐĂNG NHẬP (ĐÃ CẬP NHẬT TÊN MỚI) ---
 if not st.session_state.logged_in:
     st.title("🔐 Đăng nhập hệ thống T_Code")
     col1, col2 = st.columns([1, 2])
@@ -105,7 +114,7 @@ if not st.session_state.logged_in:
 
 user_info = st.session_state.user_info
 
-# Sidebar thông tin người dùng
+# Thanh Sidebar hiển thị thông tin học sinh/giáo viên
 st.sidebar.markdown(f"### 👤 Xin chào, **{user_info['name']}**")
 st.sidebar.info(f"Vai trò: `{user_info['role'].upper()}`")
 if st.sidebar.button("🚪 Đăng xuất"):
@@ -116,46 +125,55 @@ if st.sidebar.button("🚪 Đăng xuất"):
 st.sidebar.write("---")
 
 # ==========================================
-# CÁC TAB CHÍNH CỦA HỆ THỐNG
+# PHẦN GIAO DIỆN CHÍNH (ADMIN / STUDENT)
 # ==========================================
 if user_info["role"] == "admin":
-    tab_judge, tab_leaderboard, tab_history = st.tabs(["🖥️ Bảng Giáo Viên", "🏆 Bảng Xếp Hạng", "📊 Lịch Sử Toàn Hệ Thống"])
+    st.title("📋 Bảng quản lý của Giáo viên - T_Code")
+    st.write("---")
+    st.subheader("📊 Lịch sử chấm bài toàn hệ thống")
+    
+    df_history = load_history()
+    if not df_history.empty:
+        st.dataframe(df_history.iloc[::-1], use_container_width=True)
+    else:
+        st.info("Chưa có lịch sử chấm bài nào được lưu.")
 else:
-    tab_judge, tab_leaderboard, tab_history = st.tabs(["🖥️ Chấm Bài", "🏆 Bảng Xếp Hạng", "📜 Lịch Sử Bài Làm"])
-
-# ------------------------------------------
-# TAB 1: CHẤM BÀI
-# ------------------------------------------
-with tab_judge:
+    # --- ĐỔI TÊN HỆ THỐNG TRÊN GIAO DIỆN CHÍNH CỦA HỌC SINH ---
     st.title("🖥️ Hệ thống chấm bài tự động - T_Code")
     st.write("---")
 
+    st.sidebar.header("📁 Cấu hình chấm bài")
     problem_list = get_problem_list()
     if len(problem_list) == 0:
-        st.error("❌ Không tìm thấy đề bài nào (Hãy kiểm tra lại file ZIP).")
+        st.sidebar.error("❌ Không tìm thấy đề bài nào (Hãy kiểm tra lại file ZIP).")
         st.stop()
 
-    selected_problem = st.selectbox("🎯 Chọn đề bài để chấm", problem_list)
+    selected_problem = st.sidebar.selectbox("🎯 Chọn đề bài để chấm", problem_list)
     problem_path = os.path.join("problems", selected_problem)
 
     ok, message = validate_problem(problem_path)
     if not ok:
-        st.error(f"❌ {message}")
+        st.sidebar.error(f"❌ {message}")
         st.stop()
+    else:
+        st.sidebar.success("✅ Cấu trúc đề hợp lệ.")
 
     test_cases = get_test_cases(problem_path)
-    st.info(f"📊 Đề bài: **{selected_problem}** | Tổng số test case: **{len(test_cases)}**")
+    st.sidebar.info(f"📊 Tổng số test case: {len(test_cases)}")
 
+    st.subheader(f"📝 Đề bài: {selected_problem}")
     problem_desc = get_problem_description(problem_path)
     st.markdown(
         f"""
-        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 5px solid #007bff; margin-bottom: 20px; color: #333;">
+        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 5px solid #007bff; margin-bottom: 20px;">
             {problem_desc}
         </div>
         """, 
         unsafe_allow_html=True
     )
+    st.write("---")
 
+    st.subheader("📤 Nộp bài giải")
     uploaded_file = st.file_uploader(
         "Kéo thả file Python (.py) hoặc C++ (.cpp) của bạn vào đây", 
         type=["py", "cpp"],
@@ -167,9 +185,7 @@ with tab_judge:
         file_ext = os.path.splitext(uploaded_file.name)[1]
         lang_type = "Python" if file_ext == ".py" else "C++"
         
-        # Đọc nội dung mã nguồn
-        code_content = uploaded_file.getvalue().decode("utf-8", errors="ignore")
-        
+        # --- THAY ĐỔI ĐỂ TÊN FILE NỘP BÀI MANG DẤU ẤN T_CODE (TÙY CHỌN) ---
         custom_filename = f"TCode_{st.session_state.username}_{selected_problem}{file_ext}"
         submission_path = os.path.join(config.submission_folder, custom_filename)
         
@@ -215,8 +231,8 @@ with tab_judge:
             st.success("🎉 Đã chấm xong!")
             score_percentage = (correct_count / len(test_cases)) * 100
             
-            # Lưu lịch sử kèm mã nguồn lên Google Sheet
-            save_to_history(st.session_state.username, selected_problem, score_percentage, correct_count, len(test_cases), lang_type, code_content)
+            # Đã cập nhật: Lưu trực tiếp lên Google Sheets
+            save_to_history(st.session_state.username, selected_problem, score_percentage, correct_count, len(test_cases), lang_type)
             
             col1, col2, col3 = st.columns(3)
             col1.metric("Điểm số", f"{score_percentage:.1f}%")
@@ -225,6 +241,7 @@ with tab_judge:
             
             st.write("### 📋 Bảng kết quả chi tiết")
             df = pd.DataFrame(results)
+            
             def color_status(val):
                 if val == "Correct": return "background-color: #d4edda; color: #155724;"
                 elif val == "Wrong Answer": return "background-color: #f8d7da; color: #721c24;"
@@ -233,82 +250,15 @@ with tab_judge:
                 
             st.dataframe(df.style.map(color_status, subset=['Trạng thái']), use_container_width=True)
 
-# ------------------------------------------
-# TAB 2: BẢNG XẾP HẠNG (LEADERBOARD)
-# ------------------------------------------
-with tab_leaderboard:
-    st.title("🏆 Bảng Xếp Hạng Thi Đua T_Code")
     st.write("---")
-    df_all = load_history()
-    if not df_all.empty and "Tài khoản" in df_all.columns:
-        # Chuẩn hóa cột Điểm số thành kiểu số float
-        df_all["Điểm_Float"] = df_all["Điểm số"].str.replace("%", "").astype(float)
-        
-        # Lấy điểm cao nhất của mỗi học sinh cho mỗi bài làm
-        best_scores = df_all.groupby(["Tài khoản", "Bài làm"])["Điểm_Float"].max().reset_index()
-        
-        # Đếm số bài đạt 100% điểm và Tổng điểm số tích lũy
-        leaderboard = best_scores.groupby("Tài khoản").agg(
-            So_Bai_Hoan_Thanh=("Điểm_Float", lambda x: (x == 100.0).sum()),
-            Tong_Diem=("Điểm_Float", "sum")
-        ).reset_index()
-
-        # Thêm Tên hiển thị từ config nếu có
-        leaderboard["Họ và Tên"] = leaderboard["Tài khoản"].apply(lambda u: config.USERS.get(u, {}).get("name", u))
-
-        # Sắp xếp theo số bài hoàn thành giảm dần, sau đó đến tổng điểm
-        leaderboard = leaderboard.sort_values(by=["So_Bai_Hoan_Thanh", "Tong_Diem"], ascending=[False, False]).reset_index(drop=True)
-        leaderboard.index += 1  # Đánh số thứ tự 1, 2, 3...
-
-        leaderboard.rename(columns={
-            "Họ và Tên": "Tên Học Sinh",
-            "So_Bai_Hoan_Thanh": "🥇 Bài Đạt 100%",
-            "Tong_Diem": "⭐ Tổng Điểm Tích Lũy"
-        }, inplace=True)
-
-        st.dataframe(leaderboard[["Tên Học Sinh", "Tài khoản", "🥇 Bài Đạt 100%", "⭐ Tổng Điểm Tích Lũy"]], use_container_width=True)
-    else:
-        st.info("Chưa có dữ liệu để lập Bảng Xếp Hạng.")
-
-# ------------------------------------------
-# TAB 3: LỊCH SỬ BÀI LÀM & XEM CODE
-# ------------------------------------------
-with tab_history:
-    st.title("📜 Lịch Sử & Mã Nguồn Đã Nộp")
-    st.write("---")
-    df_history = load_history()
-
-    if not df_history.empty and "Tài khoản" in df_history.columns:
-        if user_info["role"] != "admin":
-            # Học sinh chỉ xem lịch sử của chính mình
-            df_display = df_history[df_history["Tài khoản"] == st.session_state.username]
+    st.subheader("📜 Lịch sử các lần nộp bài của bạn")
+    
+    df_all_history = load_history()
+    if not df_all_history.empty:
+        df_user_history = df_all_history[df_all_history["Tài khoản"] == st.session_state.username]
+        if not df_user_history.empty:
+            st.dataframe(df_user_history.iloc[::-1], use_container_width=True)
         else:
-            # Giáo viên xem toàn bộ
-            df_display = df_history
-
-        if not df_display.empty:
-            # Đảo ngược để bài mới nộp hiện lên đầu
-            df_display = df_display.iloc[::-1].reset_index(drop=True)
-            
-            # Hiển thị bảng tổng quan (không hiện cột Mã nguồn cho đỡ rối)
-            cols_to_show = [c for c in df_display.columns if c not in ["Mã nguồn", "Điểm_Float"]]
-            st.dataframe(df_display[cols_to_show], use_container_width=True)
-
-            st.write("---")
-            st.subheader("🔍 Xem lại mã nguồn (Source Code)")
-            
-            # Cho phép chọn một lượt nộp để xem code
-            options = [f"Lần {idx+1}: [{row['Thời gian chấm']}] - {row['Tài khoản']} - Bài {row['Bài làm']} ({row['Điểm số']})" for idx, row in df_display.iterrows()]
-            selected_idx = st.selectbox("Chọn lượt nộp để kiểm tra code:", range(len(options)), format_func=lambda x: options[x])
-
-            if selected_idx is not None:
-                selected_row = df_display.iloc[selected_idx]
-                st.markdown(f"**Tài khoản:** `{selected_row['Tài khoản']}` | **Bài:** `{selected_row['Bài làm']}` | **Ngôn ngữ:** `{selected_row['Ngôn ngữ']}`")
-                
-                code_text = selected_row.get("Mã nguồn", "# Không tìm thấy mã nguồn")
-                lang_code = "python" if selected_row["Ngôn ngữ"] == "Python" else "cpp"
-                st.code(code_text, language=lang_code)
-        else:
-            st.info("Chưa có lịch sử nộp bài nào.")
+            st.info("Bạn chưa nộp bài lần nào.")
     else:
         st.info("Hệ thống chưa ghi nhận lịch sử chấm bài nào.")
