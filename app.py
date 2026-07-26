@@ -1,3 +1,4 @@
+import pytz
 import streamlit as st
 import os
 import pandas as pd
@@ -14,21 +15,23 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 # --- HÀM HELPER: LƯU KẾT QUẢ VÀO GOOGLE SHEETS (LƯU VĨNH VIỄN) ---
 def save_to_history(username, problem, score, correct, total, lang):
+    # Lấy giờ Việt Nam (UTC+7)
+    tz_vietnam = pytz.timezone('Asia/Ho_Chi_Minh')
+    now_vn = datetime.now(tz_vietnam)
+
     new_data = pd.DataFrame([{
         "Tài khoản": username,
         "Bài làm": problem,
         "Điểm số": f"{score:.1f}%",
         "Kết quả": f"{correct}/{total}",
         "Ngôn ngữ": lang,
-        "Thời gian chấm": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        "Thời gian chấm": now_vn.strftime("%d/%m/%Y %H:%M:%S")
     }])
     try:
-        # Đọc dữ liệu hiện tại trên Google Sheet (ttl=0 để làm mới ngay lập tức)
         existing_data = conn.read(ttl=0)
         updated_data = pd.concat([existing_data, new_data], ignore_index=True)
         conn.update(data=updated_data)
     except Exception as e:
-        # Nếu trang tính trống hoàn toàn
         conn.update(data=new_data)
 
 # --- HÀM HELPER: LẤY LỊCH SỬ TỪ GOOGLE SHEETS ---
