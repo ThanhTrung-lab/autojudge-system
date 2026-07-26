@@ -1,45 +1,13 @@
+#Cập nhật mới nhé
 import streamlit as st
 import os
 import pandas as pd
 import zipfile
 import shutil  # Thư viện hỗ trợ dọn dẹp thư mục cũ
 from datetime import datetime
-from streamlit_gsheets import GSheetsConnection  # <--- Khởi tạo thư viện Google Sheets
 import config
 from testcase import get_problem_list, validate_problem, get_test_cases, get_problem_description
 from judge import run_single_test, compile_cpp
-
-# --- KHỞI TẠO KẾT NỐI GOOGLE SHEETS ---
-conn = st.connection("gsheets", type=GSheetsConnection)
-
-# --- HÀM HELPER: LƯU KẾT QUẢ VÀO GOOGLE SHEETS (LƯU VĨNH VIỄN) ---
-def save_to_history(username, problem, score, correct, total, lang):
-    new_data = pd.DataFrame([{
-        "Tài khoản": username,
-        "Bài làm": problem,
-        "Điểm số": f"{score:.1f}%",
-        "Kết quả": f"{correct}/{total}",
-        "Ngôn ngữ": lang,
-        "Thời gian chấm": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-    }])
-    try:
-        # Đọc dữ liệu hiện tại trên Google Sheet (ttl=0 để làm mới ngay lập tức)
-        existing_data = conn.read(ttl=0)
-        updated_data = pd.concat([existing_data, new_data], ignore_index=True)
-        conn.update(data=updated_data)
-    except Exception as e:
-        # Nếu trang tính trống hoàn toàn
-        conn.update(data=new_data)
-
-# --- HÀM HELPER: LẤY LỊCH SỬ TỪ GOOGLE SHEETS ---
-def load_history():
-    try:
-        df = conn.read(ttl=0)
-        if df is not None and not df.empty and "Tài khoản" in df.columns:
-            return df
-    except Exception:
-        pass
-    return pd.DataFrame()
 
 # --- ĐÃ NÂNG CẤP BẬC CAO: ÉP GIẢI NÉN KHI SỐ LƯỢNG TEST CASE TRONG FILE ZIP THAY ĐỔI ---
 if os.path.exists("problems.zip"):
@@ -85,6 +53,21 @@ if os.path.exists("problems.zip"):
 # --- 1. ĐỔI TÊN HỆ THỐNG TRÊN TAB TRÌNH DUYỆT ---
 st.set_page_config(page_title="T_Code V1.3", layout="wide")
 
+# --- HÀM HELPER: LƯU KẾT QUẢ VÀO FILE CSV ---
+def save_to_history(username, problem, score, correct, total, lang):
+    new_data = pd.DataFrame([{
+        "Tài khoản": username,
+        "Bài làm": problem,
+        "Điểm số": f"{score:.1f}%",
+        "Kết quả": f"{correct}/{total}",
+        "Ngôn ngữ": lang,
+        "Thời gian chấm": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    }])
+    if os.path.exists(config.history_file):
+        new_data.to_csv(config.history_file, mode='a', header=False, index=False, encoding='utf-8-sig')
+    else:
+        new_data.to_csv(config.history_file, mode='w', header=True, index=False, encoding='utf-8-sig')
+
 # --- KHỞI TẠO SESSION STATE ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -128,10 +111,9 @@ if user_info["role"] == "admin":
     st.title("📋 Bảng quản lý của Giáo viên - T_Code")
     st.write("---")
     st.subheader("📊 Lịch sử chấm bài toàn hệ thống")
-    
-    df_history = load_history()
-    if not df_history.empty:
-        st.dataframe(df_history.iloc[::-1], use_container_width=True)
+    if os.path.exists(config.history_file):
+        df_history = pd.read_csv(config.history_file)
+        st.dataframe(df_history, use_container_width=True)
     else:
         st.info("Chưa có lịch sử chấm bài nào được lưu.")
 else:
@@ -228,7 +210,6 @@ else:
             st.success("🎉 Đã chấm xong!")
             score_percentage = (correct_count / len(test_cases)) * 100
             
-            # Đã cập nhật: Lưu trực tiếp lên Google Sheets
             save_to_history(st.session_state.username, selected_problem, score_percentage, correct_count, len(test_cases), lang_type)
             
             col1, col2, col3 = st.columns(3)
@@ -249,9 +230,8 @@ else:
 
     st.write("---")
     st.subheader("📜 Lịch sử các lần nộp bài của bạn")
-    
-    df_all_history = load_history()
-    if not df_all_history.empty:
+    if os.path.exists(config.history_file):
+        df_all_history = pd.read_csv(config.history_file)
         df_user_history = df_all_history[df_all_history["Tài khoản"] == st.session_state.username]
         if not df_user_history.empty:
             st.dataframe(df_user_history.iloc[::-1], use_container_width=True)
